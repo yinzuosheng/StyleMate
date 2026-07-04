@@ -1,0 +1,7 @@
+*.pyc
+__pycache__/
+chroma_db/
+logs/
+.env
+data/users.json
+data/chat_history.json
