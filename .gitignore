@@ -7,3 +7,7 @@ data/users.json
 data/chat_history.json
 .worktrees/
 .superpowers/
+.streamlit/secrets.toml
+data/stylemate.db
+data/uploads/
+artifacts/
