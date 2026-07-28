@@ -8,10 +8,12 @@ class SessionWardrobeRepository:
 
     def _owner(self, owner_id: str) -> dict:
         owners = self.state["owners"]
-        return owners.setdefault(
-            owner_id,
-            {"garments": {}, "profile": {}, "favorites": {}, "feedback": {}},
-        )
+        owner = owners.setdefault(owner_id, {})
+        owner.setdefault("garments", {})
+        owner.setdefault("profile", {})
+        owner.setdefault("favorites", {})
+        owner.setdefault("feedback", {})
+        return owner
 
     def list_garments(self, owner_id: str) -> list[Garment]:
         return [

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="奶油色针织开衫">
+  <rect width="160" height="160" rx="20" fill="#f8f3e8"/>
+  <path d="M47 44 65 29h30l18 15 19 25-16 14-9-11v58H53V72l-9 11-16-14z" fill="#f1dfad" stroke="#b89d63" stroke-width="4"/>
+  <path d="M65 29 80 54 95 29M80 54v76" fill="none" stroke="#b89d63" stroke-width="3"/>
+  <circle cx="87" cy="72" r="2" fill="#8d7649"/><circle cx="87" cy="88" r="2" fill="#8d7649"/>
+</svg>

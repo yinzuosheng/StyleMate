@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="白色衬衫">
+  <rect width="160" height="160" rx="20" fill="#f4eee5"/>
+  <path d="M47 42 65 30h30l18 12 22 26-17 16-11-12v58H53V72L42 84 25 68z" fill="#fff" stroke="#a8a8a8" stroke-width="4"/>
+  <path d="m65 30 15 22 15-22M80 52v78" fill="none" stroke="#a8a8a8" stroke-width="3"/>
+</svg>

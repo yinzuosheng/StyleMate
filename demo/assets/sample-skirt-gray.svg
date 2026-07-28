@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="深灰半身裙">
+  <rect width="160" height="160" rx="20" fill="#f1efed"/>
+  <path d="M56 38h48l18 91H38z" fill="#55585d" stroke="#303236" stroke-width="4"/>
+  <path d="M56 38h48M68 46l-10 75M92 46l10 75" fill="none" stroke="#a7a9ad" stroke-width="3"/>
+</svg>

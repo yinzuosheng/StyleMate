@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from domain.models import Garment
 
 
@@ -9,6 +11,7 @@ _SAMPLE_GARMENTS = [
     ("sample-cardigan-cream", "奶油色针织开衫", "上装", "奶油色", ["温柔", "休闲"]),
     ("sample-skirt-gray", "深灰半身裙", "下装", "深灰", ["通勤", "优雅"]),
 ]
+_SAMPLE_CREATED_AT = datetime(2024, 1, 1)
 
 
 def sample_garments() -> list[Garment]:
@@ -20,8 +23,9 @@ def sample_garments() -> list[Garment]:
             primary_color=color,
             seasons=["春", "秋"],
             styles=styles,
-            image_ref=f"demo/assets/{garment_id}.png",
+            image_ref=f"demo/assets/{garment_id}.svg",
             source="sample",
+            created_at=_SAMPLE_CREATED_AT,
         )
         for garment_id, name, category, color, styles in _SAMPLE_GARMENTS
     ]

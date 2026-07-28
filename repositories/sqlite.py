@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import closing, contextmanager
 from pathlib import Path
 
 from domain.models import FavoriteOutfit, Garment, OutfitFeedback
@@ -8,10 +9,16 @@ from domain.models import FavoriteOutfit, Garment, OutfitFeedback
 class SQLiteWardrobeRepository:
     def __init__(self, path: Path):
         self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 
+    @contextmanager
+    def _connection(self):
+        with closing(sqlite3.connect(self.path)) as connection:
+            yield connection
+
     def _initialize(self) -> None:
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection, connection:
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS garments (
@@ -47,7 +54,7 @@ class SQLiteWardrobeRepository:
         return json.dumps(model.model_dump(mode="json"), ensure_ascii=False)
 
     def list_garments(self, owner_id: str) -> list[Garment]:
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 "SELECT payload FROM garments WHERE owner_id = ? ORDER BY rowid",
                 (owner_id,),
@@ -55,7 +62,7 @@ class SQLiteWardrobeRepository:
         return [Garment.model_validate_json(payload) for (payload,) in rows]
 
     def get_garment(self, owner_id: str, garment_id: str) -> Garment | None:
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection:
             row = connection.execute(
                 "SELECT payload FROM garments WHERE owner_id = ? AND garment_id = ?",
                 (owner_id, garment_id),
@@ -63,7 +70,7 @@ class SQLiteWardrobeRepository:
         return Garment.model_validate_json(row[0]) if row else None
 
     def save_garment(self, owner_id: str, garment: Garment) -> None:
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection, connection:
             connection.execute(
                 """
                 INSERT OR REPLACE INTO garments (owner_id, garment_id, image_hash, payload)
@@ -73,14 +80,14 @@ class SQLiteWardrobeRepository:
             )
 
     def delete_garment(self, owner_id: str, garment_id: str) -> None:
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection, connection:
             connection.execute(
                 "DELETE FROM garments WHERE owner_id = ? AND garment_id = ?",
                 (owner_id, garment_id),
             )
 
     def find_garment_by_hash(self, owner_id: str, image_hash: str) -> Garment | None:
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection:
             row = connection.execute(
                 """
                 SELECT payload FROM garments
@@ -92,7 +99,7 @@ class SQLiteWardrobeRepository:
         return Garment.model_validate_json(row[0]) if row else None
 
     def get_profile(self, owner_id: str) -> dict[str, str]:
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection:
             row = connection.execute(
                 "SELECT payload FROM profiles WHERE owner_id = ?", (owner_id,)
             ).fetchone()
@@ -100,14 +107,14 @@ class SQLiteWardrobeRepository:
 
     def save_profile(self, owner_id: str, profile: dict[str, str]) -> None:
         payload = json.dumps(profile, ensure_ascii=False)
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection, connection:
             connection.execute(
                 "INSERT OR REPLACE INTO profiles (owner_id, payload) VALUES (?, ?)",
                 (owner_id, payload),
             )
 
     def save_favorite(self, favorite: FavoriteOutfit) -> None:
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection, connection:
             connection.execute(
                 "INSERT OR REPLACE INTO favorites (owner_id, outfit_id, payload) VALUES (?, ?, ?)",
                 (
@@ -118,7 +125,7 @@ class SQLiteWardrobeRepository:
             )
 
     def list_favorites(self, owner_id: str) -> list[FavoriteOutfit]:
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 "SELECT payload FROM favorites WHERE owner_id = ? ORDER BY rowid",
                 (owner_id,),
@@ -126,7 +133,7 @@ class SQLiteWardrobeRepository:
         return [FavoriteOutfit.model_validate_json(payload) for (payload,) in rows]
 
     def save_feedback(self, feedback: OutfitFeedback) -> None:
-        with sqlite3.connect(self.path) as connection:
+        with self._connection() as connection, connection:
             connection.execute(
                 "INSERT OR REPLACE INTO feedback (owner_id, outfit_id, payload) VALUES (?, ?, ?)",
                 (feedback.owner_id, feedback.outfit_id, self._serialize(feedback)),
