@@ -47,7 +47,7 @@ streamlit run app.py
 
 ## 技术栈
 
-Python · LangChain · ChromaDB · Streamlit · LangGraph Middleware · 高德天气 API · DashScope (Qwen)
+Python · LangChain · ChromaDB · Streamlit · LangGraph · 高德天气 API · DashScope (Qwen)
 
 ## 向量库切换
 
@@ -57,7 +57,7 @@ Python · LangChain · ChromaDB · Streamlit · LangGraph Middleware · 高德�
 
 ```
 cloth_ai/
-├── agent/            # ReAct Agent + 8工具 + middleware
+├── agent/            # ReAct Agent + 8工具
 ├── rag/              # ChromaDB 向量库 + RAG 检索链
 ├── model/            # LLM/Embedding 工厂
 ├── utils/            # 用户认证、对话存储、配置加载

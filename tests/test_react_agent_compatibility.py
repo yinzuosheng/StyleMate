@@ -1,6 +1,7 @@
 """Compatibility coverage for the pinned LangChain/LangGraph stack."""
 
 import unittest
+from importlib.util import find_spec
 from importlib import reload
 from unittest.mock import patch
 
@@ -8,6 +9,10 @@ from langchain_core.messages import AIMessage
 
 
 class ReactAgentCompatibilityTest(unittest.TestCase):
+    def test_obsolete_middleware_module_is_not_importable(self):
+        """Prevent the incompatible middleware implementation from returning."""
+        self.assertIsNone(find_spec("agent.tools.middleware"))
+
     def test_imports_and_constructs_without_model_invocation(self):
         """Catch regressions that reintroduce APIs unavailable in pinned versions."""
         from agent.react_agent import ReactAgent
