@@ -78,6 +78,10 @@ def test_repository_garment_crud_and_owner_isolation(repo):
 
     replacement = first.model_copy(update={"name": "更新后的衬衫"})
     repo.save_garment("owner-1", replacement)
+
+    assert repo.get_garment("owner-1", "g-1") == replacement
+    assert repo.list_garments("owner-1") == [replacement]
+
     repo.delete_garment("owner-1", "g-1")
 
     assert repo.get_garment("owner-1", "g-1") is None

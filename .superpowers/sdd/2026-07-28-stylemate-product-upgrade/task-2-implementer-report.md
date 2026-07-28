@@ -91,3 +91,23 @@ per-bucket session normalization, and automatic SQLite parent creation.
 Results: focused suite `12 passed in 0.33s`; full suite `20 passed in 1.79s`;
 Ruff reported `All checks passed!`; compilation and `git diff --check` completed
 successfully.
+
+## Second review test-gap fix
+
+The parametrized garment contract now reads the owner’s garment with both
+`get_garment` and `list_garments` immediately after saving a same-ID
+replacement, before deletion. This prevents an implementation that silently
+ignores overwrites from satisfying the contract.
+
+Verification after this test-only change:
+
+```powershell
+& 'C:\Users\Administrator\.conda\envs\LLM\python.exe' -m pytest tests\repositories\test_contract.py -v
+& 'C:\Users\Administrator\.conda\envs\LLM\python.exe' -m pytest -v
+& 'C:\Users\Administrator\.conda\envs\LLM\python.exe' -m ruff check tests\repositories\test_contract.py
+& 'C:\Users\Administrator\.conda\envs\LLM\python.exe' -m compileall -q tests\repositories\test_contract.py
+```
+
+Results: contract suite `5 passed in 0.25s`; full suite `20 passed in 1.76s`;
+Ruff reported `All checks passed!`; compilation and `git diff --check` completed
+successfully.
