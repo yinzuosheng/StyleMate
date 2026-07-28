@@ -11,7 +11,8 @@ def load_system_prompts():
         raise e
 
     try:
-        return open(system_prompt_path, "r", encoding="utf-8").read()
+        with open(system_prompt_path, "r", encoding="utf-8") as prompt_file:
+            return prompt_file.read()
     except Exception as e:
         logger.error(f"[load_system_prompts]Failed: {str(e)}")
         raise e
@@ -25,7 +26,8 @@ def load_rag_prompts():
         raise e
 
     try:
-        return open(rag_prompt_path, "r", encoding="utf-8").read()
+        with open(rag_prompt_path, "r", encoding="utf-8") as prompt_file:
+            return prompt_file.read()
     except Exception as e:
         logger.error(f"[load_rag_prompts]Failed: {str(e)}")
         raise e

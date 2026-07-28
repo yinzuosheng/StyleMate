@@ -1,4 +1,4 @@
-from langchain.agents import create_agent
+from langgraph.prebuilt import create_react_agent
 from model.factory import chat_model
 from utils.prompt_loader import load_system_prompts
 from utils.logger_handler import logger
@@ -12,14 +12,12 @@ from agent.tools.agent_tools import (
     wardrobe_gap_check,
     item_style_analysis,
 )
-from agent.tools.middleware import monitor_tool, log_before_model
 
 
 class ReactAgent:
     def __init__(self):
-        self.agent = create_agent(
+        self.agent = create_react_agent(
             model=chat_model,
-            system_prompt=load_system_prompts(),
             tools=[
                 rag_summarize,
                 get_weather,
@@ -30,7 +28,7 @@ class ReactAgent:
                 wardrobe_gap_check,
                 item_style_analysis,
             ],
-            middleware=[monitor_tool, log_before_model],
+            state_modifier=load_system_prompts(),
         )
 
     def _call_model(self, prompt: str) -> str:
@@ -116,8 +114,14 @@ class ReactAgent:
         input_dict = {"messages": messages}
 
         collected = []
-        for chunk in self.agent.stream(input_dict, stream_mode="values", context={"report": False}):
+        for chunk in self.agent.stream(input_dict, stream_mode="values"):
             latest_message = chunk["messages"][-1]
+            for tool_call in getattr(latest_message, "tool_calls", []):
+                logger.info(f"[tool monitor] {tool_call.get('name', 'unknown')}")
+            if getattr(latest_message, "type", "") == "tool":
+                logger.info(f"[tool monitor] ok: {getattr(latest_message, 'name', 'unknown')}")
+            elif getattr(latest_message, "content", None):
+                logger.info("[model] response received")
             if latest_message.content:
                 content = latest_message.content.strip() + "\n"
                 collected.append(content)

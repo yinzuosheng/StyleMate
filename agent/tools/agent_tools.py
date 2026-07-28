@@ -6,7 +6,14 @@ import requests
 from langchain_core.tools import tool
 from rag.rag_service import RagSummarizeService
 
-rag = RagSummarizeService()
+rag = None
+
+
+def _get_rag_service() -> RagSummarizeService:
+    global rag
+    if rag is None:
+        rag = RagSummarizeService()
+    return rag
 
 
 SIZE_RULES = [
@@ -23,9 +30,10 @@ SIZE_RULES = [
 SIZE_ORDER = ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"]
 
 
-@tool(description="从向量存储中检索衣橱知识库资料")
+@tool
 def rag_summarize(query: str) -> str:
-    return rag.rag_summarize(query)
+    """从向量存储中检索衣橱知识库资料。"""
+    return _get_rag_service().rag_summarize(query)
 
 
 def _get_amap_key() -> str:
@@ -120,13 +128,15 @@ def fetch_weather_text(city: str) -> str:
     return "预报天气：\n" + "\n".join(lines)
 
 
-@tool(description="获取指定城市的天气（高德天气），以字符串返回")
+@tool
 def get_weather(city: str) -> str:
+    """获取指定城市的天气（高德天气），以字符串返回。"""
     return fetch_weather_text(city)
 
 
-@tool(description="获取用户所在城市名称（高德定位），以字符串返回")
+@tool
 def get_user_location() -> str:
+    """获取用户所在城市名称（高德定位），以字符串返回。"""
     city = resolve_user_city()
     return city or "定位失败"
 
@@ -205,8 +215,9 @@ def _parse_weight_kg(weight_input: str) -> Tuple[float | None, str]:
     return value, "未标注单位，按kg处理"
 
 
-@tool(description="根据身高体重推荐尺码（支持斤/公斤自动换算）")
+@tool
 def recommend_size(height: str, weight: str, fit_preference: str = "") -> str:
+    """根据身高体重推荐尺码（支持斤/公斤自动换算）。"""
     height_cm = _parse_height_cm(height)
     weight_kg, weight_note = _parse_weight_kg(weight)
 
@@ -230,8 +241,9 @@ def recommend_size(height: str, weight: str, fit_preference: str = "") -> str:
     )
 
 
-@tool(description="根据场景、风格、季节和色彩偏好推荐穿搭")
+@tool
 def recommend_outfit(scene: str, style: str, season: str, color_preference: str = "") -> str:
+    """根据场景、风格、季节和色彩偏好推荐穿搭。"""
     scene = (scene or "日常").strip()
     style = (style or "简约").strip()
     season = (season or "春秋").strip()
@@ -278,8 +290,9 @@ def recommend_outfit(scene: str, style: str, season: str, color_preference: str 
     )
 
 
-@tool(description="根据材质给出洗护建议")
+@tool
 def care_guide(material: str) -> str:
+    """根据材质给出洗护建议。"""
     key = (material or "").strip().lower()
     guides = {
         "棉": "水温<=30C，中性洗涤剂，反面清洗，阴干。",
@@ -296,11 +309,12 @@ def care_guide(material: str) -> str:
         if k in key:
             return v
 
-    return rag.rag_summarize(f"{material} 洗涤 养护 注意事项")
+    return _get_rag_service().rag_summarize(f"{material} 洗涤 养护 注意事项")
 
 
-@tool(description="根据已有单品清单给出衣橱缺口提醒")
+@tool
 def wardrobe_gap_check(items: str, season: str = "") -> str:
+    """根据已有单品清单给出衣橱缺口提醒。"""
     if not items:
         return "请提供已有单品清单，例如：白衬衫、牛仔裤、运动鞋。"
 
@@ -326,8 +340,9 @@ def wardrobe_gap_check(items: str, season: str = "") -> str:
     return f"{season}季建议补齐：" + "、".join(missing)
 
 
-@tool(description="根据衣物描述进行风格和版型标签分析")
+@tool
 def item_style_analysis(description: str) -> str:
+    """根据衣物描述进行风格和版型标签分析。"""
     if not description:
         return "请提供衣物描述，如：短款牛仔外套、廓形、浅蓝。"
 
