@@ -96,7 +96,8 @@ Result: exit code 0.
 The review found that the now-unused `agent.tools.middleware` module still
 imported LangChain 1.x-only middleware symbols and logged tool arguments and
 message contents. The module was deleted rather than retained as a dead
-compatibility shim, and README references to middleware were removed.
+compatibility shim; the README technical-stack and project-structure labels
+were updated in that round.
 
 ### RED
 
@@ -124,6 +125,20 @@ is no longer importable.
 ```
 
 Result: 4 tests passed; compile completed with exit code 0.
+
+## Documentation Correction
+
+A subsequent review found a stale README feature bullet that still advertised
+the removed LangChain 1.x middleware decorators. It now accurately describes
+the privacy-safe event and tool-name logging in `agent/react_agent.py`.
+
+Verification command:
+
+```powershell
+rg -n '@wrap_tool_call|@before_model' README.md
+```
+
+Result: no matches.
 
 ## Concern
 
