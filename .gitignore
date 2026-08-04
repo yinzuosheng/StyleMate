@@ -10,4 +10,5 @@ data/chat_history.json
 .streamlit/secrets.toml
 data/stylemate.db
 data/uploads/
-artifacts/
+artifacts/*
+!artifacts/evaluation.json
