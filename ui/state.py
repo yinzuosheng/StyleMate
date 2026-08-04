@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from agent.tools.agent_tools import fetch_weather_text
 from config.runtime import RuntimeSettings
 from demo.sample_data import sample_garments
+from domain.models import Garment
 from gateways.vision import DashScopeVisionGateway, VisionGateway
 from repositories.base import WardrobeRepository
 from repositories.session import SessionWardrobeRepository
@@ -26,6 +26,13 @@ class AppContext:
     wardrobe_service: WardrobeService
     onboarding_skill: WardrobeOnboardingSkill
     outfit_skill: OutfitPlanningSkill
+
+
+def _fetch_weather_lazily(city: str) -> str:
+    """Keep the retired RAG/agent stack out of no-key app startup."""
+    from agent.tools.agent_tools import fetch_weather_text
+
+    return fetch_weather_text(city)
 
 
 def build_context(
@@ -50,7 +57,7 @@ def build_context(
 
     service = WardrobeService(repository, image_store, settings.max_upload_bytes)
     actual_vision = vision or DashScopeVisionGateway(settings)
-    actual_weather = weather_loader or fetch_weather_text
+    actual_weather = weather_loader or _fetch_weather_lazily
     return AppContext(
         settings=settings,
         owner_id=owner_id,
@@ -84,3 +91,34 @@ def delete_garment(context: AppContext, garment_id: str) -> None:
     if garment.image_ref:
         context.image_store.delete(context.owner_id, garment.image_ref)
     context.repository.delete_garment(context.owner_id, garment_id)
+
+
+def validated_garment_update(
+    garment: Garment,
+    *,
+    name: str,
+    category: str,
+    primary_color: str,
+    material: str | None,
+    seasons: str,
+    styles: str,
+) -> Garment:
+    """Return a fully validated edit, leaving persistence to the caller."""
+    normalized = {
+        "name": name.strip(),
+        "category": category.strip(),
+        "primary_color": primary_color.strip(),
+        "material": material.strip() if material else None,
+        "seasons": _split_labels(seasons),
+        "styles": _split_labels(styles),
+    }
+    required = ("name", "category", "primary_color")
+    if any(not normalized[field] for field in required):
+        raise ValueError("Name, category, and color are required")
+    if not normalized["seasons"] or not normalized["styles"]:
+        raise ValueError("At least one season and style are required")
+    return Garment.model_validate({**garment.model_dump(mode="json"), **normalized})
+
+
+def _split_labels(value: str) -> list[str]:
+    return [item.strip() for item in value.replace("，", ",").split(",") if item.strip()]

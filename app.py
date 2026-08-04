@@ -3,6 +3,7 @@
 import json
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -17,7 +18,13 @@ from ui.components import (
     render_outfit_card,
     render_trace,
 )
-from ui.state import AppContext, build_context, delete_garment, load_sample_wardrobe
+from ui.state import (
+    AppContext,
+    build_context,
+    delete_garment,
+    load_sample_wardrobe,
+    validated_garment_update,
+)
 
 
 load_dotenv()
@@ -33,7 +40,16 @@ def _image_value(context: AppContext, garment: Garment):
     if not garment.image_ref:
         return None
     if garment.image_ref.startswith("demo/"):
-        return garment.image_ref
+        project_root = Path(__file__).resolve().parent
+        sample_path = (project_root / garment.image_ref).resolve()
+        try:
+            sample_path.relative_to(project_root)
+        except ValueError:
+            return None
+        if sample_path.suffix.lower() == ".svg" and sample_path.is_file():
+            svg_text = sample_path.read_text(encoding="utf-8")
+            return f"data:image/svg+xml;utf8,{quote(svg_text)}"
+        return sample_path
     return context.image_store.read(context.owner_id, garment.image_ref)
 
 
@@ -141,10 +157,16 @@ def _wardrobe_tab(context: AppContext, garments: list[Garment]) -> None:
                         save = st.form_submit_button("保存修改")
                     if save:
                         try:
-                            context.repository.save_garment(
-                                context.owner_id,
-                                garment.model_copy(update={"name": name, "category": category, "primary_color": color, "material": material or None, "seasons": _labels(seasons), "styles": _labels(styles_value)}),
+                            updated = validated_garment_update(
+                                garment,
+                                name=name,
+                                category=category,
+                                primary_color=color,
+                                material=material,
+                                seasons=seasons,
+                                styles=styles_value,
                             )
+                            context.repository.save_garment(context.owner_id, updated)
                             st.rerun()
                         except ValidationError as exc:
                             st.error(f"无法保存：{exc}")

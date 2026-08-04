@@ -23,3 +23,11 @@
 ## Manual UI note
 
 Streamlit was started headlessly on port 8503. The available in-app browser runtime reported that no browser was available, so interactive browser verification could not be performed. The no-provider startup path is covered by the AppTest smoke test; no live vision or weather call is made by that test.
+
+## Review fix round
+
+- RED: with `DASHSCOPE_API_KEY` explicitly set to an empty string, `python.exe -m pytest tests/test_app_smoke.py -v` failed in both tests. The startup traceback showed `ui.state -> agent.tools.agent_tools -> rag -> model.factory -> ChatTongyi`, ending in the expected missing DashScope key validation error.
+- GREEN: replaced the eager legacy import with `_fetch_weather_lazily`, which imports the legacy weather helper only if a user actually requests weather. The isolated smoke suite now passes with the empty key and asserts all four tabs.
+- Added an AppTest that clicks `加载样例衣橱`, reruns, checks no exception, and verifies all six sample garment card names. SVG sample files are resolved from the repository root, read explicitly as UTF-8, and supplied to Streamlit as safe data URIs.
+- Added `validated_garment_update`; it normalizes all edit fields, requires nonblank name/category/color and nonempty seasons/styles, validates the full original garment payload with `Garment.model_validate`, then allows persistence. Its regression test proves an invalid edit leaves the stored garment unchanged.
+- Fix-round verification: isolated smoke `2 passed in 0.45s`; full regression `61 passed in 2.05s`; Ruff clean; compileall and `git diff --check` exit 0.
