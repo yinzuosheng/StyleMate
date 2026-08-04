@@ -1,0 +1,1 @@
+"""Deterministic wardrobe recommendation rules."""
