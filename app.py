@@ -143,36 +143,38 @@ def _wardrobe_tab(context: AppContext, garments: list[Garment]) -> None:
             if (selected_category == "全部" or garment.category == selected_category)
             and (selected_style == "全部" or selected_style in garment.styles)
         ]
-        for garment in visible:
-            with st.container(border=True):
-                render_garment_card(garment, _image_value(context, garment))
-                with st.expander("编辑或删除"):
-                    with st.form(f"edit_{garment.id}"):
-                        name = st.text_input("名称", garment.name, key=f"name_{garment.id}")
-                        category = st.text_input("类别", garment.category, key=f"category_{garment.id}")
-                        color = st.text_input("颜色", garment.primary_color, key=f"color_{garment.id}")
-                        material = st.text_input("材质", garment.material or "", key=f"material_{garment.id}")
-                        seasons = st.text_input("适用季节", "，".join(garment.seasons), key=f"seasons_{garment.id}")
-                        styles_value = st.text_input("风格", "，".join(garment.styles), key=f"styles_{garment.id}")
-                        save = st.form_submit_button("保存修改")
-                    if save:
-                        try:
-                            updated = validated_garment_update(
-                                garment,
-                                name=name,
-                                category=category,
-                                primary_color=color,
-                                material=material,
-                                seasons=seasons,
-                                styles=styles_value,
-                            )
-                            context.repository.save_garment(context.owner_id, updated)
+        grid_columns = st.columns(3)
+        for index, garment in enumerate(visible):
+            with grid_columns[index % 3]:
+                with st.container(border=True):
+                    render_garment_card(garment, _image_value(context, garment))
+                    with st.expander("编辑或删除"):
+                        with st.form(f"edit_{garment.id}"):
+                            name = st.text_input("名称", garment.name, key=f"name_{garment.id}")
+                            category = st.text_input("类别", garment.category, key=f"category_{garment.id}")
+                            color = st.text_input("颜色", garment.primary_color, key=f"color_{garment.id}")
+                            material = st.text_input("材质", garment.material or "", key=f"material_{garment.id}")
+                            seasons = st.text_input("适用季节", "，".join(garment.seasons), key=f"seasons_{garment.id}")
+                            styles_value = st.text_input("风格", "，".join(garment.styles), key=f"styles_{garment.id}")
+                            save = st.form_submit_button("保存修改")
+                        if save:
+                            try:
+                                updated = validated_garment_update(
+                                    garment,
+                                    name=name,
+                                    category=category,
+                                    primary_color=color,
+                                    material=material,
+                                    seasons=seasons,
+                                    styles=styles_value,
+                                )
+                                context.repository.save_garment(context.owner_id, updated)
+                                st.rerun()
+                            except (ValidationError, ValueError) as exc:
+                                st.error(f"无法保存：{exc}")
+                        if st.button("删除这件衣物", key=f"delete_{garment.id}"):
+                            delete_garment(context, garment.id)
                             st.rerun()
-                        except ValidationError as exc:
-                            st.error(f"无法保存：{exc}")
-                    if st.button("删除这件衣物", key=f"delete_{garment.id}"):
-                        delete_garment(context, garment.id)
-                        st.rerun()
 
     st.divider()
     st.subheader("新增衣物")

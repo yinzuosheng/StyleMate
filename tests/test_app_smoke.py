@@ -29,3 +29,21 @@ def test_sample_wardrobe_renders_all_cards_without_exception(monkeypatch):
     assert not app.exception
     rendered = "\n".join(item.value for item in app.markdown)
     assert all(garment.name in rendered for garment in sample_garments())
+
+
+def test_invalid_wardrobe_edit_is_shown_without_saving_or_crashing(monkeypatch):
+    monkeypatch.setenv("APP_MODE", "demo")
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "")
+    app = AppTest.from_file(str(Path(__file__).parents[1] / "app.py"))
+
+    app.run(timeout=20)
+    app.button(key="load_samples_today").click()
+    app.run(timeout=20)
+    app.text_input(key="name_sample-shirt-white").set_value("   ")
+    app.button(key="FormSubmitter:edit_sample-shirt-white-保存修改").click()
+    app.run(timeout=20)
+
+    assert not app.exception
+    assert any("无法保存" in item.value for item in app.error)
+    saved = app.session_state["owners"]["demo-user"]["garments"]["sample-shirt-white"]
+    assert saved["name"] == "白色衬衫"

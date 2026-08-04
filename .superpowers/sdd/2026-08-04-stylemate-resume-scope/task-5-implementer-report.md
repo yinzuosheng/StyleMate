@@ -31,3 +31,10 @@ Streamlit was started headlessly on port 8503. The available in-app browser runt
 - Added an AppTest that clicks `加载样例衣橱`, reruns, checks no exception, and verifies all six sample garment card names. SVG sample files are resolved from the repository root, read explicitly as UTF-8, and supplied to Streamlit as safe data URIs.
 - Added `validated_garment_update`; it normalizes all edit fields, requires nonblank name/category/color and nonempty seasons/styles, validates the full original garment payload with `Garment.model_validate`, then allows persistence. Its regression test proves an invalid edit leaves the stored garment unchanged.
 - Fix-round verification: isolated smoke `2 passed in 0.45s`; full regression `61 passed in 2.05s`; Ruff clean; compileall and `git diff --check` exit 0.
+
+## Integration fix round
+
+- RED: the new AppTest loaded samples, submitted an edit with a whitespace-only name, and failed because `validated_garment_update` raised its intentional `ValueError` outside the app handler's `except ValidationError` clause.
+- GREEN: the handler now catches both `ValidationError` and `ValueError`, displays `无法保存`, and does not persist the invalid data. The AppTest asserts no app exception, a visible error, and the original `sample-shirt-white` record still reads `白色衬衫`.
+- The visible wardrobe loop now uses three repeating Streamlit columns while retaining the existing per-garment widget keys; Streamlit supplies the natural narrow-layout fallback.
+- Integration verification: isolated smoke `3 passed in 0.59s`; focused state + smoke `7 passed in 0.56s`; full regression `62 passed in 2.14s`; Ruff clean; compileall and `git diff --check` exit 0.
