@@ -32,24 +32,37 @@ def plan_outfits(
     if not tops or not bottoms:
         return []
 
-    shoes = next(
-        (garment for garment in inventory if _matches_category(garment, "\u978b\u5c65")),
-        None,
-    )
-    outerwear = next(
-        (garment for garment in inventory if _matches_category(garment, "\u5916\u5957")),
-        None,
-    )
     recommendations: list[OutfitRecommendation] = []
     seen_ids: set[tuple[str, ...]] = set()
     for top, bottom in product(tops, bottoms):
+        top_bottom = len({top.id, bottom.id}) == 2
+        if not top_bottom:
+            continue
         selected = [top, bottom]
+        shoes = next(
+            (
+                garment
+                for garment in inventory
+                if _matches_category(garment, "\u978b\u5c65")
+                and garment.id not in {item.id for item in selected}
+            ),
+            None,
+        )
         if shoes is not None:
             selected.append(shoes)
+        outerwear = next(
+            (
+                garment
+                for garment in inventory
+                if _matches_category(garment, "\u5916\u5957")
+                and garment.id not in {item.id for item in selected}
+            ),
+            None,
+        )
         if outerwear is not None:
             selected.append(outerwear)
-        garment_ids = [garment.id for garment in selected]
-        unique_ids = tuple(sorted(set(garment_ids)))
+        garment_ids = list(dict.fromkeys(garment.id for garment in selected))
+        unique_ids = tuple(sorted(garment_ids))
         if unique_ids in seen_ids:
             continue
         seen_ids.add(unique_ids)
@@ -71,7 +84,7 @@ def plan_outfits(
                 reason=f"{request.scene} outfit selected from your wardrobe.",
                 constraint_checks={
                     "inventory": True,
-                    "top_bottom": True,
+                    "top_bottom": top_bottom,
                     "style": style_matches,
                 },
             )

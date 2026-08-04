@@ -59,3 +59,39 @@ def test_skill_trace_is_compact_and_keeps_weather_payload_private(repo, sample_g
     assert len(outcome.trace.steps) <= 3
     assert all("secret=hot" not in step.summary for step in outcome.trace.steps)
     assert all(sample_garments[0].name not in step.summary for step in outcome.trace.steps)
+
+
+def test_skill_keeps_owner_wardrobes_isolated(repo, sample_garments):
+    for garment in sample_garments:
+        repo.save_garment("u1", garment)
+
+    outcome = OutfitPlanningSkill(repo).run("u2", OutfitRequest(scene="\u901a\u52e4"))
+
+    assert outcome.status == "fallback"
+    assert outcome.data["recommendations"] == []
+
+
+def test_skill_keeps_recommendation_fields_when_weather_fails(repo, sample_garments):
+    for garment in sample_garments:
+        repo.save_garment("u1", garment)
+
+    request = OutfitRequest(scene="\u901a\u52e4", city="\u676d\u5dde")
+    available = OutfitPlanningSkill(repo, weather_loader=lambda city: "clear").run(
+        "u1", request
+    )
+
+    def unavailable(city: str) -> str:
+        raise TimeoutError(city)
+
+    fallback = OutfitPlanningSkill(repo, weather_loader=unavailable).run("u1", request)
+    excluded = {"created_at", "weather_note"}
+    available_fields = [
+        {key: value for key, value in item.items() if key not in excluded}
+        for item in available.data["recommendations"]
+    ]
+    fallback_fields = [
+        {key: value for key, value in item.items() if key not in excluded}
+        for item in fallback.data["recommendations"]
+    ]
+
+    assert available_fields == fallback_fields
