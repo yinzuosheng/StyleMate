@@ -7,7 +7,7 @@ from json import JSONDecodeError
 from pydantic import ValidationError
 
 from domain.models import AgentTrace, AgentTraceStep, Garment, SkillOutcome
-from gateways.vision import VisionError, VisionGateway
+from gateways.vision import VisionError, VisionGateway, validate_vision_payload
 from services.wardrobe_service import UploadValidationError, WardrobeService
 
 
@@ -47,7 +47,9 @@ class WardrobeOnboardingSkill:
 
         for attempt in range(2):
             try:
-                payload = self.vision.analyze(image_bytes, mime_type, user_note)
+                payload = validate_vision_payload(
+                    self.vision.analyze(image_bytes, mime_type, user_note)
+                )
                 garment = Garment.model_validate(
                     {
                         **payload,

@@ -63,6 +63,17 @@ def test_skill_retries_once_then_returns_manual_form(repo):
     assert "manual" in outcome.user_message.lower()
 
 
+def test_skill_retries_malformed_provider_schema_then_returns_manual_form(repo):
+    malformed = {**VALID, "confidence": {"category": 1.1}}
+    vision = FakeVision([malformed, malformed])
+
+    outcome = make_skill(repo, vision).run("u1", b"image", "image/jpeg", "coat.jpg", "")
+
+    assert vision.calls == 2
+    assert outcome.status == "needs_review"
+    assert outcome.data["manual_entry"] is True
+
+
 def test_skill_returns_existing_owner_garment_without_calling_vision(repo):
     service = WardrobeService(repo, SessionImageStore({}), max_upload_bytes=8 * 1024 * 1024)
     image_bytes = b"image"

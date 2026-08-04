@@ -60,3 +60,19 @@ def test_save_confirmed_stores_image_before_persisting_garment(repo, jpeg_bytes)
     assert saved.image_ref is not None
     assert store.read("owner-1", saved.image_ref) == jpeg_bytes
     assert repo.get_garment("owner-1", garment.id) == saved
+
+
+class FailingRepository:
+    def save_garment(self, owner_id, garment):
+        raise RuntimeError("database unavailable")
+
+
+def test_save_confirmed_deletes_image_when_persistence_fails(jpeg_bytes):
+    store = SessionImageStore({})
+    service = WardrobeService(FailingRepository(), store, max_upload_bytes=8 * 1024 * 1024)
+    garment = confirmed_garment(service.image_hash(jpeg_bytes))
+
+    with pytest.raises(RuntimeError, match="database unavailable"):
+        service.save_confirmed("owner-1", garment, jpeg_bytes, "image/jpeg")
+
+    assert store.state["images"]["owner-1"] == {}

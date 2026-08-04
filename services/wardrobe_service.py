@@ -52,5 +52,9 @@ class WardrobeService:
         saved = garment.model_copy(
             update={"image_ref": image_ref, "image_hash": self.image_hash(image_bytes)}
         )
-        self.repository.save_garment(owner_id, saved)
+        try:
+            self.repository.save_garment(owner_id, saved)
+        except Exception:
+            self.image_store.delete(owner_id, image_ref)
+            raise
         return saved

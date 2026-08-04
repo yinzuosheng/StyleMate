@@ -2,7 +2,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, PngImagePlugin
 
 from storage.images import LocalImageStore, SessionImageStore
 
@@ -44,6 +44,39 @@ def test_local_store_strips_image_metadata(tmp_path: Path):
 
     with Image.open(tmp_path / "uploads" / ref) as saved:
         assert not saved.getexif()
+
+
+@pytest.mark.parametrize(
+    ("image_format", "mime_type"),
+    [("JPEG", "image/jpeg"), ("PNG", "image/png"), ("WEBP", "image/webp")],
+)
+def test_local_store_removes_exif_icc_xmp_and_comments(
+    tmp_path: Path, image_format: str, mime_type: str
+):
+    exif = Image.Exif()
+    exif[270] = "private-exif"
+    source = BytesIO()
+    options = {
+        "exif": exif.tobytes(),
+        "icc_profile": b"private-icc-profile",
+        "xmp": b"<x:xmpmeta>private-xmp-comment</x:xmpmeta>",
+    }
+    if image_format == "PNG":
+        pnginfo = PngImagePlugin.PngInfo()
+        pnginfo.add_text("Comment", "private-comment")
+        pnginfo.add_itxt("XML:com.adobe.xmp", "private-xmp-comment")
+        options["pnginfo"] = pnginfo
+    Image.new("RGB", (8, 8), "white").save(source, format=image_format, **options)
+    assert b"private" in source.getvalue()
+
+    store = LocalImageStore(tmp_path / "uploads")
+    ref = store.save("u1", "g1", source.getvalue(), mime_type)
+    saved_path = tmp_path / "uploads" / ref
+
+    assert b"private" not in saved_path.read_bytes()
+    with Image.open(saved_path) as saved:
+        assert not saved.getexif()
+        assert not {"icc_profile", "xmp", "comment", "Comment"} & saved.info.keys()
 
 
 def test_local_store_converts_transparent_sources_for_jpeg(tmp_path: Path):

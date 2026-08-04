@@ -98,8 +98,12 @@ class LocalImageStore:
         except (OSError, ValueError) as exc:
             raise ValueError("Image bytes cannot be decoded") from exc
         if image_format == "JPEG" and image.mode != "RGB":
-            return image.convert("RGB")
-        return image.convert("RGB") if image.mode not in {"RGB", "RGBA"} else image
+            image = image.convert("RGB")
+        elif image.mode not in {"RGB", "RGBA"}:
+            image = image.convert("RGB")
+        clean = Image.new(image.mode, image.size)
+        clean.paste(image)
+        return clean
 
     def _owner_directory(self, owner_id: str) -> Path:
         owner_token = hashlib.sha256(owner_id.encode("utf-8")).hexdigest()

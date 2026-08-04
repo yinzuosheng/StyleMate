@@ -46,3 +46,34 @@ live provider payload compatibility remains outside this offline Task 3 scope.
 An initial local test run resolved an ambient `DASHSCOPE_API_KEY` before the
 test was isolated; it was immediately changed to clear that environment value,
 and no subsequent verification invokes the provider.
+
+## Review Fix Round
+
+### RED evidence
+
+- An SDK-signature fake that accepts `request_timeout` and rejects unsupported
+  keywords failed with `TypeError: ... unexpected keyword argument 'timeout'`.
+- The cross-format privacy test found that a PNG saved through the old store
+  retained `icc_profile` in `Image.info`.
+- A failing repository left the just-created `memory://` entry in session image
+  state after `save_confirmed` raised.
+- Extra provider keys, blank required text, and confidence `1.1` all passed
+  through the old gateway; an invalid direct Skill payload was accepted on its
+  first call instead of retrying.
+
+### GREEN evidence
+
+- DashScope now receives `request_timeout=settings.model_timeout_seconds`; the
+  signature-compatible boundary fake passes.
+- A fresh Pillow image is rebuilt from pixels before save. JPEG, PNG, and WebP
+  tests each confirm EXIF, ICC, XMP, and comment markers are absent.
+- Repository errors cause the newly saved image to be deleted before the
+  original error is re-raised.
+- `VisionGarmentPayload` strictly requires exactly `name`, `category`,
+  `primary_color`, `material`, `seasons`, `styles`, and `confidence`; extras,
+  blank required text, and out-of-range confidence become `VisionResponseError`.
+  The Skill independently validates gateway payloads, retries once, then
+  returns its editable manual-entry fallback.
+- Focused Task 3 verification: 24 passed. Full regression: 44 passed in
+  1.86s. Ruff changed paths: `All checks passed!`; `compileall` succeeded;
+  `git diff --check` produced no diff errors.

@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from typing import Any, Protocol
 
 from config.runtime import RuntimeSettings
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 
 class VisionGateway(Protocol):
@@ -27,6 +28,48 @@ class VisionTransportError(VisionError):
 
 class VisionResponseError(VisionError, ValueError):
     """Raised when the provider gives no usable structured response."""
+
+
+class VisionGarmentPayload(BaseModel):
+    """The exact structured contract required from the vision provider."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    name: str = Field(min_length=1)
+    category: str = Field(min_length=1)
+    primary_color: str = Field(min_length=1)
+    material: str | None
+    seasons: list[str] = Field(min_length=1)
+    styles: list[str] = Field(min_length=1)
+    confidence: dict[str, float]
+
+    @field_validator("name", "category", "primary_color", "material")
+    @classmethod
+    def non_empty_text(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("text fields must not be blank")
+        return value.strip() if value is not None else None
+
+    @field_validator("seasons", "styles")
+    @classmethod
+    def non_empty_labels(cls, values: list[str]) -> list[str]:
+        if any(not value.strip() for value in values):
+            raise ValueError("labels must not be blank")
+        return [value.strip() for value in values]
+
+    @field_validator("confidence")
+    @classmethod
+    def confidence_is_bounded(cls, values: dict[str, float]) -> dict[str, float]:
+        if any(value < 0 or value > 1 for value in values.values()):
+            raise ValueError("confidence values must be between 0 and 1")
+        return values
+
+
+def validate_vision_payload(payload: dict) -> dict:
+    try:
+        return VisionGarmentPayload.model_validate(payload).model_dump()
+    except ValidationError as exc:
+        raise VisionResponseError("Vision service returned malformed structured data") from exc
 
 
 class DashScopeVisionGateway:
@@ -58,7 +101,7 @@ class DashScopeVisionGateway:
             raise VisionResponseError("Vision service returned invalid JSON") from exc
         if not isinstance(payload, dict):
             raise VisionResponseError("Vision service returned a non-object JSON response")
-        return payload
+        return validate_vision_payload(payload)
 
     def _call_provider(self, data_url: str, user_note: str) -> Any:
         client = self.client
@@ -86,7 +129,7 @@ class DashScopeVisionGateway:
                     }
                 ],
                 api_key=self.api_key,
-                timeout=self.settings.model_timeout_seconds,
+                request_timeout=self.settings.model_timeout_seconds,
                 response_format={"type": "json_object"},
             )
         except Exception as exc:
