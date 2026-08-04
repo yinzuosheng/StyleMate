@@ -1,568 +1,240 @@
-import re
-from dotenv import load_dotenv
-load_dotenv()
+"""StyleMate: a demo-first, inventory-grounded wardrobe workbench."""
+
+import json
+import uuid
+from pathlib import Path
+
 import streamlit as st
-from agent.react_agent import ReactAgent
-from agent.tools.agent_tools import resolve_user_city, fetch_weather_text
-from utils.auth import (
-    ensure_user_store,
-    authenticate_user,
-    register_user,
-    get_user_profile,
-    update_user_profile,
+from dotenv import load_dotenv
+from pydantic import ValidationError
+
+from config.runtime import RuntimeSettings
+from domain.models import Garment, OutfitRecommendation, OutfitRequest
+from ui.components import (
+    inject_style,
+    render_empty_state,
+    render_garment_card,
+    render_outfit_card,
+    render_trace,
 )
-from utils.chat_store import (
-    ensure_chat_store,
-    list_user_chats,
-    get_chat_messages,
-    create_chat,
-    append_message,
-    update_chat_title,
-    delete_chat,
-)
-
-st.set_page_config(page_title="衣橱助理", page_icon="👗")
-st.title("👗 衣橱助理 Agent")
-st.caption("基于 LangChain ReAct Agent + RAG 检索增强")
-st.divider()
-
-st.markdown(
-    """
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=IBM+Plex+Sans:wght@400;600&display=swap');
-
-        html, body, [class*="css"]  {
-            font-family: 'IBM Plex Sans', 'ZCOOL XiaoWei', sans-serif;
-            color: #2b2b2b;
-        }
-        h1, h2, h3, h4 {
-            font-family: 'ZCOOL XiaoWei', 'IBM Plex Sans', sans-serif;
-            letter-spacing: 0.3px;
-        }
-
-        [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #f5f2ee 0%, #f9f7f4 100%);
-            border-right: 1px solid #ede7e1;
-        }
-        [data-testid="stSidebar"] h2,
-        [data-testid="stSidebar"] h3 {
-            color: #2f2b27;
-        }
-        [data-testid="stSidebar"] .stButton > button {
-            width: 100%;
-            border-radius: 10px;
-            border: 1px solid #e3dcd4;
-            background: #ffffff;
-            color: #2f2b27;
-            padding: 0.4rem 0.6rem;
-        }
-        [data-testid="stSidebar"] .stButton > button:hover {
-            border-color: #cfc6bb;
-            background: #fdfcfb;
-        }
-        [data-testid="stSidebar"] .stTextInput input,
-        [data-testid="stSidebar"] .stTextArea textarea {
-            border-radius: 10px;
-            border: 1px solid #e6dfd7;
-            background: #ffffff;
-        }
-        [data-testid="stSidebar"] button[kind="primary"] {
-            background: #efe8df;
-            border-color: #d9cec2;
-            color: #2f2b27;
-            font-weight: 600;
-            box-shadow: none;
-        }
-        [data-testid="stSidebar"] button[kind="primary"]:hover {
-            background: #e6ddd2;
-            border-color: #cdbfb1;
-        }
-
-        .chat-list-title {font-weight: 600; margin-top: 0.6rem; color: #3a342f;}
-        .chat-row {display: flex; align-items: center; gap: 6px; margin: 2px 0;}
-        .chat-row small {color: #8f8780;}
-        .sidebar-actions button {padding: 0.25rem 0.45rem;}
-
-        .usage-hint {
-            background: linear-gradient(120deg, #fbf8f3 0%, #f4efe8 100%);
-            border: 1px solid #eadfce;
-            border-radius: 14px;
-            padding: 1rem 1.2rem;
-            margin: 0.8rem 0 1.4rem 0;
-            box-shadow: 0 8px 20px rgba(64, 53, 39, 0.06);
-        }
-        .usage-title {
-            font-weight: 600;
-            margin-bottom: 0.4rem;
-            color: #3b332c;
-        }
-        .usage-hint ul {
-            margin: 0;
-            padding-left: 1.2rem;
-            color: #5c534b;
-        }
-        .usage-hint li {margin: 0.25rem 0;}
-        .profile-summary {
-            background: #fff7ee;
-            border: 1px dashed #e6d6c4;
-            border-radius: 12px;
-            padding: 0.6rem 0.7rem;
-            color: #6a5f55;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-ensure_user_store()
-ensure_chat_store()
-
-if "user" not in st.session_state:
-    st.session_state["user"] = None
-if "active_chat_id" not in st.session_state:
-    st.session_state["active_chat_id"] = None
+from ui.state import AppContext, build_context, delete_garment, load_sample_wardrobe
 
 
-PROFILE_LABELS = {
-    "height": "身高",
-    "weight": "体重",
-    "fit_preference": "版型偏好",
-    "style_preference": "风格偏好",
-    "color_preference": "颜色偏好",
-    "scene_preference": "常见场景",
-    "body_features": "体型特征",
-}
-
-PROFILE_KEYS = list(PROFILE_LABELS.keys())
+load_dotenv()
+st.set_page_config(page_title="StyleMate 衣橱管家", page_icon="👔", layout="wide")
+inject_style()
 
 
-def _profile_context(profile: dict) -> str:
-    if not profile:
-        return ""
-
-    labels = PROFILE_LABELS
-    parts = []
-    for key, label in labels.items():
-        value = str(profile.get(key, "")).strip()
-        if value:
-            parts.append(f"- {label}：{value}")
-
-    if not parts:
-        return ""
-
-    return "用户画像（长期记忆，请优先参考）：\n" + "\n".join(parts)
+def _labels(value: str) -> list[str]:
+    return [item.strip() for item in value.replace("，", ",").split(",") if item.strip()]
 
 
-def _profile_preview(profile: dict) -> str:
-    context = _profile_context(profile)
-    if not context:
-        return "尚未填写"
-    return context.replace("用户画像（长期记忆，请优先参考）：\n", "").replace("\n", "；")
+def _image_value(context: AppContext, garment: Garment):
+    if not garment.image_ref:
+        return None
+    if garment.image_ref.startswith("demo/"):
+        return garment.image_ref
+    return context.image_store.read(context.owner_id, garment.image_ref)
 
 
-def _split_values(text: str) -> set[str]:
-    if not text:
-        return set()
-    parts = re.split(r"[，,;/、\s]+", text)
-    return {p.strip() for p in parts if p.strip()}
+def _draft_form(context: AppContext) -> None:
+    draft = st.session_state.get("stylemate_draft")
+    upload = st.session_state.get("stylemate_upload")
+    if not draft or not upload:
+        return
+
+    st.subheader("确认衣物信息")
+    with st.form("stylemate_confirm_garment"):
+        name = st.text_input("名称", value=draft.get("name", ""))
+        category = st.text_input("类别", value=draft.get("category", ""), placeholder="上装、下装、外套或鞋履")
+        color = st.text_input("颜色", value=draft.get("primary_color", ""))
+        material = st.text_input("材质", value=draft.get("material") or "")
+        seasons = st.text_input("适用季节（逗号分隔）", value="，".join(draft.get("seasons", [])), placeholder="春、秋")
+        styles = st.text_input("风格（逗号分隔）", value="，".join(draft.get("styles", [])), placeholder="通勤、简约")
+        confirmed = st.form_submit_button("确认入库", type="primary")
+    if not confirmed:
+        return
+    try:
+        garment = Garment.model_validate(
+            {
+                **draft,
+                "id": draft.get("id") or str(uuid.uuid4()),
+                "name": name.strip(),
+                "category": category.strip(),
+                "primary_color": color.strip(),
+                "material": material.strip() or None,
+                "seasons": _labels(seasons),
+                "styles": _labels(styles),
+                "source": "manual" if draft.get("source") == "manual" else "ai",
+            }
+        )
+        context.wardrobe_service.save_confirmed(
+            context.owner_id, garment, upload["bytes"], upload["mime_type"]
+        )
+    except (ValidationError, ValueError) as exc:
+        st.error(f"请补全有效的衣物信息：{exc}")
+        return
+    st.session_state.pop("stylemate_draft", None)
+    st.session_state.pop("stylemate_upload", None)
+    st.success("已保存到你的衣橱。")
+    st.rerun()
 
 
-def _is_conflict(old_value: str, new_value: str) -> bool:
-    if not old_value or not new_value:
-        return False
-    old_set = _split_values(old_value)
-    new_set = _split_values(new_value)
-    if not old_set or not new_set:
-        return False
-    return old_set.isdisjoint(new_set)
+def _today_tab(context: AppContext, garments: list[Garment]) -> None:
+    st.subheader("从现有衣橱开始搭配")
+    if not garments:
+        render_empty_state("衣橱还是空的", "先加载样例衣橱，或在“我的衣橱”中识别一件衣物。")
+        if st.button("加载样例衣橱", type="primary", key="load_samples_today"):
+            count = load_sample_wardrobe(context)
+            st.success(f"已添加 {count} 件样例衣物。")
+            st.rerun()
+        return
+
+    with st.form("today_outfit_form"):
+        scene = st.text_input("场景", value="通勤")
+        city = st.text_input("城市（可选）")
+        style = st.text_input("偏好风格（可选）")
+        generate = st.form_submit_button("生成今日搭配", type="primary")
+    if generate:
+        outcome = context.outfit_skill.run(
+            context.owner_id,
+            OutfitRequest(scene=scene.strip() or "日常", city=city.strip() or None, style_preference=style.strip() or None),
+        )
+        st.session_state["stylemate_outfits"] = outcome
+    outcome = st.session_state.get("stylemate_outfits")
+    if outcome:
+        st.info(outcome.user_message)
+        by_id = {garment.id: garment for garment in garments}
+        for payload in outcome.data.get("recommendations", [])[:3]:
+            render_outfit_card(OutfitRecommendation.model_validate(payload), by_id)
+        render_trace(outcome.trace)
 
 
-def _extract_profile_from_text(text: str) -> dict:
-    text = (text or "").strip()
-    if not text:
-        return {}
-
-    profile: dict[str, str] = {}
-
-    height_match = re.search(r"(?:身高\s*)?([1-2]\d{2})\s*(?:cm|厘米)", text)
-    if height_match:
-        profile["height"] = f"{height_match.group(1)}cm"
+def _wardrobe_tab(context: AppContext, garments: list[Garment]) -> None:
+    st.subheader("我的衣橱")
+    if not garments:
+        render_empty_state("还没有衣物", "上传一张清晰的衣物照片，识别后确认入库。")
+        if st.button("加载样例衣橱", type="primary", key="load_samples_wardrobe"):
+            load_sample_wardrobe(context)
+            st.rerun()
     else:
-        height_match = re.search(r"(?:身高\s*)?([1-2]\.\d{1,2})\s*(?:m|米)", text)
-        if height_match:
-            profile["height"] = f"{height_match.group(1)}m"
-        else:
-            height_match = re.search(r"身高\s*([1-2]\d{2})", text)
-            if height_match:
-                profile["height"] = f"{height_match.group(1)}cm"
+        categories = sorted({garment.category for garment in garments})
+        styles = sorted({style for garment in garments for style in garment.styles})
+        selected_category = st.selectbox("按类别筛选", ["全部", *categories])
+        selected_style = st.selectbox("按风格筛选", ["全部", *styles])
+        visible = [
+            garment for garment in garments
+            if (selected_category == "全部" or garment.category == selected_category)
+            and (selected_style == "全部" or selected_style in garment.styles)
+        ]
+        for garment in visible:
+            with st.container(border=True):
+                render_garment_card(garment, _image_value(context, garment))
+                with st.expander("编辑或删除"):
+                    with st.form(f"edit_{garment.id}"):
+                        name = st.text_input("名称", garment.name, key=f"name_{garment.id}")
+                        category = st.text_input("类别", garment.category, key=f"category_{garment.id}")
+                        color = st.text_input("颜色", garment.primary_color, key=f"color_{garment.id}")
+                        material = st.text_input("材质", garment.material or "", key=f"material_{garment.id}")
+                        seasons = st.text_input("适用季节", "，".join(garment.seasons), key=f"seasons_{garment.id}")
+                        styles_value = st.text_input("风格", "，".join(garment.styles), key=f"styles_{garment.id}")
+                        save = st.form_submit_button("保存修改")
+                    if save:
+                        try:
+                            context.repository.save_garment(
+                                context.owner_id,
+                                garment.model_copy(update={"name": name, "category": category, "primary_color": color, "material": material or None, "seasons": _labels(seasons), "styles": _labels(styles_value)}),
+                            )
+                            st.rerun()
+                        except ValidationError as exc:
+                            st.error(f"无法保存：{exc}")
+                    if st.button("删除这件衣物", key=f"delete_{garment.id}"):
+                        delete_garment(context, garment.id)
+                        st.rerun()
 
-    weight_match = re.search(r"(?:体重\s*)?([3-9]\d(?:\.\d+)?)\s*(kg|公斤|千克|斤)", text)
-    if weight_match:
-        profile["weight"] = f"{weight_match.group(1)}{weight_match.group(2)}"
-    else:
-        weight_match = re.search(r"体重\s*([3-9]\d(?:\.\d+)?)", text)
-        if weight_match:
-            profile["weight"] = f"{weight_match.group(1)}kg"
-
-    fit_map = {
-        "宽松": "宽松",
-        "偏松": "宽松",
-        "oversize": "宽松",
-        "修身": "修身",
-        "偏紧": "修身",
-        "贴身": "修身",
-        "合身": "标准",
-        "标准": "标准",
-    }
-    for key, value in fit_map.items():
-        if key in text.lower():
-            profile["fit_preference"] = value
-            break
-
-    style_keywords = ["简约", "通勤", "甜美", "街头", "运动", "休闲", "韩系", "日系", "复古", "学院", "温柔", "法式"]
-    for style in style_keywords:
-        if style in text:
-            profile["style_preference"] = style
-            break
-
-    color_keywords = ["黑白灰", "中性色", "暖色", "冷色", "亮色", "莫兰迪", "大地色", "低饱和", "高饱和"]
-    for color in color_keywords:
-        if color in text:
-            profile["color_preference"] = color
-            break
-
-    scene_map = {
-        "通勤": "通勤",
-        "上班": "通勤",
-        "约会": "约会",
-        "出游": "出游",
-        "旅行": "出游",
-        "运动": "运动",
-        "居家": "居家",
-        "面试": "面试",
-        "聚会": "聚会",
-    }
-    for key, value in scene_map.items():
-        if key in text:
-            profile["scene_preference"] = value
-            break
-
-    body_terms = ["肩宽", "肩窄", "胯宽", "胯窄", "腿粗", "腿细", "梨形", "H型", "X型", "O型", "腿长", "腿短"]
-    body_hits = [t for t in body_terms if t in text]
-    if body_hits:
-        profile["body_features"] = "、".join(sorted(set(body_hits)))
-
-    return profile
+    st.divider()
+    st.subheader("新增衣物")
+    uploaded = st.file_uploader("上传衣物照片", type=["jpg", "jpeg", "png", "webp"])
+    note = st.text_input("补充说明（可选）", placeholder="例如：偏宽松的米色风衣")
+    if uploaded and st.button("识别衣物", type="primary"):
+        image_bytes = uploaded.getvalue()
+        outcome = context.onboarding_skill.run(
+            context.owner_id, image_bytes, uploaded.type, uploaded.name, note
+        )
+        st.session_state["stylemate_draft"] = outcome.data["garment"]
+        st.session_state["stylemate_upload"] = {"bytes": image_bytes, "mime_type": uploaded.type}
+        st.session_state["stylemate_onboarding_trace"] = outcome.trace
+        st.info(outcome.user_message)
+    _draft_form(context)
+    if trace := st.session_state.get("stylemate_onboarding_trace"):
+        render_trace(trace)
 
 
-def _merge_profile(existing: dict, updates: dict) -> tuple[dict, list[str], dict]:
-    merged = {key: str(existing.get(key, "")).strip() for key in PROFILE_KEYS}
-    changed_fields: list[str] = []
-    conflicts: dict[str, dict] = {}
-
-    for key, value in updates.items():
-        value = str(value or "").strip()
-        if not value:
-            continue
-        current = merged.get(key, "")
-
-        if key == "body_features" and current:
-            merged_set = _split_values(current)
-            merged_set.update(_split_values(value))
-            merged_value = "、".join(sorted(merged_set))
-            if merged_value != current:
-                merged[key] = merged_value
-                changed_fields.append(key)
-            continue
-
-        if current and _is_conflict(current, value):
-            conflicts[key] = {"current": current, "incoming": value}
-            continue
-
-        if value != current:
-            merged[key] = value
-            changed_fields.append(key)
-
-    return merged, changed_fields, conflicts
+def _assistant_tab(context: AppContext, garments: list[Garment]) -> None:
+    st.subheader("搭配助手")
+    if not garments:
+        render_empty_state("需要一点衣橱基础", "添加至少一件上装和一件下装，再生成搭配。")
+        return
+    with st.form("assistant_outfit_form"):
+        scene = st.text_input("这次要去哪里？", value="约会")
+        city = st.text_input("所在城市（可选）", key="assistant_city")
+        style = st.text_input("想要的风格（可选）", key="assistant_style")
+        submitted = st.form_submit_button("给我搭配建议", type="primary")
+    if submitted:
+        outcome = context.outfit_skill.run(
+            context.owner_id,
+            OutfitRequest(scene=scene.strip() or "日常", city=city.strip() or None, style_preference=style.strip() or None),
+        )
+        st.info(outcome.user_message)
+        by_id = {garment.id: garment for garment in garments}
+        for payload in outcome.data.get("recommendations", [])[:3]:
+            render_outfit_card(OutfitRecommendation.model_validate(payload), by_id)
+        render_trace(outcome.trace)
 
 
-def _format_conflicts(conflicts: dict) -> str:
-    if not conflicts:
-        return ""
-    parts = []
-    for key, payload in conflicts.items():
-        label = PROFILE_LABELS.get(key, key)
-        parts.append(f"{label}：画像为{payload.get('current')}，本次为{payload.get('incoming')}")
-    return "；".join(parts)
-
-
-def _request_profile_context(profile: dict) -> str:
-    if not profile:
-        return ""
-    parts = []
-    for key, label in PROFILE_LABELS.items():
-        value = str(profile.get(key, "")).strip()
-        if value:
-            parts.append(f"- {label}：{value}")
-    if not parts:
-        return ""
-    return "本次请求偏好（仅用于当前回答）：\n" + "\n".join(parts)
-
-
-def _conflict_context(conflicts: dict) -> str:
-    if not conflicts:
-        return ""
-    details = []
-    for key, payload in conflicts.items():
-        label = PROFILE_LABELS.get(key, key)
-        details.append(f"- {label}：画像={payload.get('current')} / 当前={payload.get('incoming')}")
-    return (
-        "检测到用户画像偏好与本次请求不一致，请在回答中提醒用户并给出折中建议，"
-        "必要时询问是否更新画像。\n" + "\n".join(details)
+def _about_tab(context: AppContext) -> None:
+    st.subheader("关于项目")
+    st.markdown("**技术栈**：Streamlit、Pydantic、SQLite（本地模式）、DashScope 视觉识别。")
+    mode_text = "演示模式仅在当前浏览器会话保存数据。" if context.settings.app_mode == "demo" else "本地模式将衣物元数据保存在本机 SQLite，图片保存在本地目录。"
+    st.write(mode_text)
+    st.info("隐私说明：上传图片仅用于本次识别与本地衣橱保存；页面的生成过程不会展示图片字节或 API 密钥。")
+    artifact = Path("artifacts/evaluation.json")
+    if not artifact.is_file():
+        st.caption("评测将在发布前生成。")
+        return
+    try:
+        metrics = json.loads(artifact.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        st.caption("评测将在发布前生成。")
+        return
+    rates = dict(
+        list(
+            (key, value)
+            for key, value in metrics.items()
+            if "rate" in key.lower()
+        )[:3]
     )
-
-with st.sidebar:
-    st.header("账号")
-    if st.session_state["user"]:
-        st.success(f"已登录：{st.session_state['user']}")
-        if st.button("退出登录"):
-            st.session_state["user"] = None
-            st.session_state["active_chat_id"] = None
-            st.rerun()
+    if rates:
+        st.json(rates)
     else:
-        tab_login, tab_register = st.tabs(["登录", "注册"])
-        with tab_login:
-            login_user = st.text_input("用户名", key="login_user")
-            login_pass = st.text_input("密码", type="password", key="login_pass")
-            if st.button("登录"):
-                ok, msg = authenticate_user(login_user, login_pass)
-                if ok:
-                    st.session_state["user"] = login_user
-                    st.rerun()
-                else:
-                    st.error(msg)
-
-        with tab_register:
-            reg_user = st.text_input("用户名", key="reg_user")
-            reg_pass = st.text_input("密码", type="password", key="reg_pass")
-            reg_pass2 = st.text_input("确认密码", type="password", key="reg_pass2")
-            if st.button("注册"):
-                if reg_pass != reg_pass2:
-                    st.error("两次输入的密码不一致")
-                else:
-                    ok, msg = register_user(reg_user, reg_pass)
-                    if ok:
-                        st.session_state["user"] = reg_user
-                        st.rerun()
-                    else:
-                        st.error(msg)
-
-    if st.session_state["user"]:
-        user_profile = get_user_profile(st.session_state["user"])
-        st.header("对话记录")
-        chats = list_user_chats(st.session_state["user"])
-        st.session_state["chat_titles"] = {c["id"]: c["title"] for c in chats}
-
-        if st.button("新对话"):
-            new_id = create_chat(st.session_state["user"], "新对话")
-            st.session_state["active_chat_id"] = new_id
-            st.rerun()
-
-        if chats:
-            chat_ids = [c["id"] for c in chats]
-            active_id = st.session_state.get("active_chat_id")
-            if active_id not in chat_ids:
-                active_id = chat_ids[0]
-                st.session_state["active_chat_id"] = active_id
-
-            st.markdown("<div class='chat-list-title'>最近</div>", unsafe_allow_html=True)
-            for chat in chats:
-                chat_id = chat["id"]
-                title = chat.get("title", "新对话")
-                updated_at = chat.get("updated_at", "")
-
-                col_main, col_menu = st.columns([0.86, 0.14])
-                with col_main:
-                    is_active = chat_id == active_id
-                    if st.button(
-                        title,
-                        key=f"chat_open_{chat_id}",
-                        type="primary" if is_active else "secondary",
-                        use_container_width=True,
-                    ):
-                        st.session_state["active_chat_id"] = chat_id
-                        st.rerun()
-                    if updated_at:
-                        st.caption(updated_at)
-                with col_menu:
-                    with st.popover(" "):
-                        new_title = st.text_input(
-                            "重命名",
-                            value=title,
-                            key=f"rename_{chat_id}",
-                        )
-                        if st.button("保存名称", key=f"save_{chat_id}"):
-                            update_chat_title(st.session_state["user"], chat_id, new_title.strip())
-                            st.rerun()
-                        if st.button("删除对话", key=f"delete_{chat_id}"):
-                            delete_chat(st.session_state["user"], chat_id)
-                            st.session_state["active_chat_id"] = None
-                            st.rerun()
-        else:
-            st.caption("暂无对话记录")
-
-        st.header("个人画像")
-        st.markdown(
-            f"<div class='profile-summary'>当前画像：{_profile_preview(user_profile)}</div>",
-            unsafe_allow_html=True,
-        )
-        with st.popover("编辑画像"):
-            with st.form("profile_form"):
-                profile_height = st.text_input("身高", value=user_profile.get("height", ""), placeholder="165cm / 1.65m")
-                profile_weight = st.text_input("体重", value=user_profile.get("weight", ""), placeholder="52kg / 104斤")
-                profile_fit = st.text_input("版型偏好", value=user_profile.get("fit_preference", ""), placeholder="宽松 / 修身 / 标准")
-                profile_style = st.text_input("风格偏好", value=user_profile.get("style_preference", ""), placeholder="简约 / 通勤 / 甜美")
-                profile_color = st.text_input("颜色偏好", value=user_profile.get("color_preference", ""), placeholder="黑白灰 / 暖色 / 冷色")
-                profile_scene = st.text_input("常见场景", value=user_profile.get("scene_preference", ""), placeholder="通勤 / 约会 / 出游")
-                profile_body = st.text_area("体型特征", value=user_profile.get("body_features", ""), placeholder="肩宽、胯宽、腿型等")
-                save_profile = st.form_submit_button("保存画像")
-
-                if save_profile:
-                    ok, msg = update_user_profile(
-                        st.session_state["user"],
-                        {
-                            "height": profile_height,
-                            "weight": profile_weight,
-                            "fit_preference": profile_fit,
-                            "style_preference": profile_style,
-                            "color_preference": profile_color,
-                            "scene_preference": profile_scene,
-                            "body_features": profile_body,
-                        },
-                    )
-                    if ok:
-                        st.success(msg)
-                        st.rerun()
-                    else:
-                        st.error(msg)
-
-    st.header("设置")
-    auto_weather = st.checkbox("自动定位并补充天气", value=True)
+        st.caption("评测将在发布前生成。")
 
 
-def _should_prefetch_weather(text: str) -> bool:
-    if not text:
-        return False
-    keywords = ["天气", "穿什么", "出门", "出行", "通勤", "旅行", "带什么衣服", "搭配"]
-    if not any(k in text for k in keywords):
-        return False
-    # If user already mentions a destination/region hint, avoid IP-based auto fill.
-    location_hints = ["市", "省", "县", "区", "州", "国", "去", "到"]
-    if any(h in text for h in location_hints):
-        return False
-    return True
-
-if "agent" not in st.session_state:
-    st.session_state["agent"] = ReactAgent()
-
-user = st.session_state["user"]
-active_chat_id = st.session_state.get("active_chat_id")
-if user and active_chat_id:
-    messages = get_chat_messages(user, active_chat_id)
-else:
-    messages = []
-
-for message in messages:
-    st.chat_message(message["role"]).write(message["content"])
-
-if user and not messages:
-        st.markdown(
-                """
-                <div class="usage-hint">
-                    <div class="usage-title">可以直接描述你的需求，例如：</div>
-                    <ul>
-                        <li>根据身高体重推荐尺码</li>
-                        <li>约会/通勤/出游穿搭建议</li>
-                        <li>某材质衣物的洗护方式</li>
-                    </ul>
-                </div>
-                """,
-                unsafe_allow_html=True,
-        )
-
-prompt = None
-if user:
-    prompt = st.chat_input("输入你的需求...")
-else:
-    st.info("请先登录后再开始对话。")
-
-def _build_title(text: str) -> str:
-    text = (text or "").strip()
-    if len(text) <= 16:
-        return text or "新对话"
-    return text[:16] + "..."
+def main() -> None:
+    settings = RuntimeSettings.from_env()
+    context = build_context(st.session_state, settings)
+    garments = context.repository.list_garments(context.owner_id)
+    st.title("StyleMate 衣橱管家")
+    st.caption("用已有衣物，快速得到可执行的今日搭配。")
+    today, wardrobe, assistant, about = st.tabs(["今日搭配", "我的衣橱", "搭配助手", "关于项目"])
+    with today:
+        _today_tab(context, garments)
+    with wardrobe:
+        _wardrobe_tab(context, garments)
+    with assistant:
+        _assistant_tab(context, garments)
+    with about:
+        _about_tab(context)
 
 
-if prompt:
-    if not active_chat_id:
-        active_chat_id = create_chat(user, _build_title(prompt))
-        st.session_state["active_chat_id"] = active_chat_id
-    else:
-        title = st.session_state.get("chat_titles", {}).get(active_chat_id, "")
-        if title in ("", "新对话"):
-            update_chat_title(user, active_chat_id, _build_title(prompt))
-
-    st.chat_message("user").write(prompt)
-    append_message(user, active_chat_id, "user", prompt)
-    messages.append({"role": "user", "content": prompt})
-
-    current_profile = get_user_profile(user)
-    extracted_profile = _extract_profile_from_text(prompt)
-    merged_profile, updated_fields, conflicts = _merge_profile(current_profile, extracted_profile)
-    if updated_fields:
-        update_user_profile(user, merged_profile)
-        changed_labels = [PROFILE_LABELS.get(x, x) for x in updated_fields]
-        st.info("已自动补充画像：" + "、".join(changed_labels))
-    if conflicts:
-        st.warning("检测到偏好冲突：" + _format_conflicts(conflicts))
-
-    response_messages: list[str] = []
-    enriched_prompt = prompt
-    if auto_weather and _should_prefetch_weather(prompt):
-        city = resolve_user_city()
-        if city:
-            weather_text = fetch_weather_text(city)
-            if weather_text and not weather_text.startswith("天气查询失败"):
-                enriched_prompt = f"{prompt}\n\n已获取天气信息：{weather_text}"
-
-    messages_for_agent = [dict(m) for m in messages]
-    if messages_for_agent and messages_for_agent[-1].get("role") == "user":
-        messages_for_agent[-1]["content"] = enriched_prompt
-
-    system_notes = []
-    profile_context = _profile_context(merged_profile)
-    if profile_context:
-        system_notes.append({"role": "system", "content": profile_context})
-    request_context = _request_profile_context(extracted_profile)
-    if request_context:
-        system_notes.append({"role": "system", "content": request_context})
-    conflict_context = _conflict_context(conflicts)
-    if conflict_context:
-        system_notes.append({"role": "system", "content": conflict_context})
-    if system_notes:
-        messages_for_agent = system_notes + messages_for_agent
-
-    with st.spinner("衣橱助理思考中..."):
-        res_stream = st.session_state["agent"].execute_stream(messages_for_agent)
-
-        def stream_generator(generator, cache_list):
-            for chunk in generator:
-                cache_list.append(chunk)
-                for char in chunk:
-                    yield char
-
-        st.chat_message("assistant").write_stream(stream_generator(res_stream, response_messages))
-        assistant_text = "".join(response_messages)
-        append_message(user, active_chat_id, "assistant", assistant_text)
-        messages.append({"role": "assistant", "content": assistant_text})
-        st.rerun()
+main()
