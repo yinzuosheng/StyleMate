@@ -91,4 +91,4 @@ python -m pytest -q
 
 ## 在线演示
 
-公开地址：**待部署**
+公开地址：[https://stylemate-wardrobe.streamlit.app/](https://stylemate-wardrobe.streamlit.app/)
