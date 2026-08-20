@@ -1,5 +1,0 @@
-chat_model_name: qwen3-max
-embedding_model_name: text-embedding-v4
-vector_store_type: chroma
-milvus_host: 127.0.0.1
-milvus_port: 19530

@@ -1,0 +1,2 @@
+"""StyleMate domain contracts."""
+

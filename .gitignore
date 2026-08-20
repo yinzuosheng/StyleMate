@@ -1,5 +1,6 @@
 *.pyc
 __pycache__/
+.venv/
 chroma_db/
 logs/
 .env
@@ -7,3 +8,19 @@ data/users.json
 data/chat_history.json
 .worktrees/
 .superpowers/
+.streamlit/secrets.toml
+data/stylemate.db
+data/agent.db
+data/agent_checkpoints.db
+data/chroma/
+data/user_docs/
+data/uploads/
+assets/demo/cc_candidates.json
+artifacts/*
+!artifacts/evaluation.json
+!artifacts/agent_evaluation.json
+.pytest-tmp/
+.pytest_cache/
+.ruff_cache/
+.test-tmp/
+.vscode/
