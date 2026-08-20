@@ -2,7 +2,7 @@
 
 StyleMate 是一个面向个人使用的 Streamlit 衣橱助手，串联衣物图片识别、人工校正、入库管理、连续对话、天气穿搭和旅行规划。单个有界 LangGraph Agent 负责按需选择工具，衣橱事实和写操作仍由确定性服务控制。项目定位是单用户本地应用，不提供账号体系或多用户 SaaS 能力。
 
-下图为 demo 模式加载样例衣橱后的真实产品界面。
+下图为 local 模式加载 128 件演示衣橱后的真实产品界面。
 
 ![StyleMate 衣橱管家真实产品截图](docs/assets/stylemate-main.png)
 
@@ -16,26 +16,6 @@ StyleMate 是一个面向个人使用的 Streamlit 衣橱助手，串联衣物�
 4. 校正名称、品类、颜色、材质、季节与风格后确认入库。
 5. 在衣橱 Agent 中连续询问搭配、天气、尺码、洗护和库存问题。
 6. Agent 提议新增、修改或删除衣物时，检查操作预览并手动确认。
-
-## 架构
-
-```mermaid
-flowchart LR
-    UI["Streamlit 三标签页 + 右侧助手"] --> ONBOARD["衣物识别与入库"]
-    UI --> PLAN["库存约束搭配规划"]
-    UI --> AGENT["有界 LangGraph Agent"]
-    AGENT --> MEMORY["最近 8 条 + 结构化会话事实 + 已确认偏好"]
-    AGENT --> TOOLS["Owner/Conversation 绑定工具"]
-    TOOLS --> SKILLS["有界领域 Skills"]
-    SKILLS --> PLAN
-    SKILLS --> RAG["BM25 + 向量召回 + RRF 融合"]
-    TOOLS --> PENDING["PendingAction 确认协议"]
-    ONBOARD --> REPO["Session / SQLite 仓储"]
-    ONBOARD --> VISION["DashScope 网关（可选）"]
-    PLAN --> REPO
-    PLAN --> WEATHER["高德天气接口（可选）"]
-    PENDING --> REPO
-```
 
 ## 快速开始
 
@@ -56,8 +36,10 @@ local 模式是默认的个人模式，衣橱记录写入本地 SQLite，上传�
 
 ```powershell
 $env:APP_MODE = "local"
-python -m streamlit run app.py
+python -m streamlit run app.py --server.port 8511
 ```
+
+启动后打开 [http://localhost:8511](http://localhost:8511)。这是本地日常使用和面试演示入口；GitHub 仓库本身不提供独立的公共在线演示服务。
 
 第一次创建本地数据库时，应用会从 `assets/demo/wardrobe.json` 初始化 128 件高分辨率演示衣物，并将图片复制到本地图片存储。素材来自 Auckland Museum，经 Wikimedia Commons 核验为 `CC BY 4.0`；manifest 保留创作者、来源页面、原图地址和尺寸。v2 迁移会替换仍存在的旧演示记录并增量加入新记录；用户已删除的演示衣物不会在重启或升级时恢复。若要重新体验全新初始化，应在明确不再需要本地数据后自行移走 `data/stylemate.db` 和 `data/uploads/`。
 
@@ -215,7 +197,3 @@ python -m pytest -q
 - `KnowledgeQASkill`：执行 BM25 + 向量 + RRF 检索、来源校验和一次有限查询改写；没有可验证来源时拒答。
 
 旅行天气查询、购买建议和衣橱写操作属于 Agent 工具编排边界，其中写操作仍由 `PendingAction` 人在回路协议保护。
-
-## 在线演示
-
-公开地址：[https://stylemate-wardrobe.streamlit.app/](https://stylemate-wardrobe.streamlit.app/)

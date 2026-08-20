@@ -2,7 +2,7 @@
 
 > 文档用途：为下一轮开发、最终目录整理和 GitHub 发布提供唯一上下文。
 >
-> 项目仓库：[yinzuosheng741-wq/StyleMate](https://github.com/yinzuosheng741-wq/StyleMate)
+> 项目仓库：[yinzuosheng/StyleMate](https://github.com/yinzuosheng/StyleMate)
 >
 > 当前落地目录：`C:\Users\Administrator\Desktop\实习项目\cloth_ai`
 
@@ -68,24 +68,7 @@ StyleMate 是一个面向个人用户的衣橱助手，目标岗位是 AI 应用
 
 当前功能侧已经完成，下一阶段的“最后一点”主要是发布工程工作：统一目录、修正迁移后的资源路径、完成 GitHub 前检查和最终演示，不再继续堆叠功能。
 
-## 3. 当前架构
-
-```mermaid
-flowchart LR
-    UI["Streamlit 三标签页 + 右侧助手"] --> SERVICE["AgentService"]
-    SERVICE --> GRAPH["LangGraph assistant -> tools -> assistant"]
-    GRAPH --> MEMORY["最近 8 条 + ConversationFacts + 已确认偏好"]
-    GRAPH --> TOOLKIT["Owner/Conversation 绑定工具"]
-    TOOLKIT --> SKILLS["三个有界 Skill"]
-    TOOLKIT --> WEATHER["定位 / 天气"]
-    TOOLKIT --> WARDROBE["衣橱查询 / 搭配 / 写操作"]
-    SKILLS --> RAG["BM25 + Embedding + Chroma + RRF"]
-    RAG --> CORPUS["64 条知识记录 / 16 个来源"]
-    TOOLKIT --> HITL["PendingAction 人在回路"]
-    UI --> REPO["Session 或 SQLite"]
-    WARDROBE --> REPO
-    HITL --> REPO
-```
+## 3. 当前实现
 
 ### 3.1 Agent 范式
 
