@@ -160,4 +160,3 @@ class SQLiteWardrobeRepository:
                 "INSERT OR REPLACE INTO feedback (owner_id, outfit_id, payload) VALUES (?, ?, ?)",
                 (feedback.owner_id, feedback.outfit_id, self._serialize(feedback)),
             )
-

@@ -37,4 +37,3 @@ class ProfileService:
         normalized = {key: str(profile.get(key, "")).strip() for key in PROFILE_KEYS}
         self.repository.save_profile(owner_id, normalized)
         return normalized
-

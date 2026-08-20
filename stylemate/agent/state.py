@@ -83,4 +83,3 @@ def model_messages(state: AgentState, system_prompt: str) -> list[BaseMessage]:
     # Tool messages belong to the active graph loop only, never to persisted history.
     context.extend(message for message in state.get("messages", []) if getattr(message, "type", "") == "tool")
     return context
-

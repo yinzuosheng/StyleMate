@@ -114,4 +114,3 @@ class AmapClient:
             return int(value) if value not in (None, "") else None
         except (TypeError, ValueError):
             return None
-

@@ -167,4 +167,3 @@ def _safe_summary(value: Any) -> str:
         text,
     )
     return text[:157] + "..." if len(text) > 160 else text
-

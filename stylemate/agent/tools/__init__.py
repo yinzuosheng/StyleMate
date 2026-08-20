@@ -19,4 +19,3 @@ __all__ = [
     "search_wardrobe",
     "wardrobe_gap_check",
 ]
-

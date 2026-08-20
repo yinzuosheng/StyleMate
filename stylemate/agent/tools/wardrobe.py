@@ -128,4 +128,3 @@ def _season_basics(season: str) -> list[str]:
         "冬": ["上装", "下装", "鞋履", "外套"],
     }
     return season_specific.get(normalized, ["上装", "下装", "鞋履"])
-

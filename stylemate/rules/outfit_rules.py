@@ -299,4 +299,3 @@ def _recommendation_sort_key(recommendation: OutfitRecommendation) -> tuple:
 def _recommendation_id(scene: str, garment_ids: list[str]) -> str:
     payload = "|".join([scene, *sorted(garment_ids)])
     return "outfit-" + hashlib.sha1(payload.encode("utf-8")).hexdigest()[:12]
-

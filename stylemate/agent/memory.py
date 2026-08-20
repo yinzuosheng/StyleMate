@@ -225,4 +225,3 @@ __all__ = [
     "prune_expired_facts",
     "update_conversation_facts",
 ]
-

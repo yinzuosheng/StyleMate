@@ -89,4 +89,3 @@ def test_all_domain_skills_publish_bounded_typed_specs():
     assert all(spec.input_model.model_fields for spec in specs)
     assert all(spec.output_model.__name__ == "SkillOutcome" for spec in specs)
     assert all(len(spec.allowed_tools) <= spec.max_steps for spec in specs)
-

@@ -58,4 +58,3 @@ def test_open_outfit_guidance_is_available_without_owned_garments():
     assert "透气短袖" in guidance.top
     assert "轻薄下装" in guidance.bottom
     assert guidance.avoid
-

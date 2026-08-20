@@ -18,4 +18,3 @@ def load_builtin_records(path: Path) -> list[KnowledgeRecord]:
             except (json.JSONDecodeError, ValueError) as exc:
                 raise ValueError(f"知识库第 {line_number} 行无效: {exc}") from exc
     return records
-

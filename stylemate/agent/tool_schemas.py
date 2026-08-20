@@ -167,4 +167,3 @@ __all__ = [
     "WeatherArguments",
     "plain_arguments",
 ]
-

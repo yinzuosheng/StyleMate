@@ -8,4 +8,3 @@ __all__ = [
     "KnowledgeRecord", "RetrievalHit", "UserDocumentText", "create_chroma_client", "extract_user_document",
     "load_builtin_records",
 ]
-

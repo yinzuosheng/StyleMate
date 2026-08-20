@@ -70,4 +70,3 @@ embed_model = None
 
 
 __all__ = ["build_chat_model", "build_chat_model_from_env"]
-

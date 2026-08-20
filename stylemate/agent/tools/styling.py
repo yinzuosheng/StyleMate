@@ -260,4 +260,3 @@ def _shift_size(size: str, preference: str) -> str:
     elif any(word in preference for word in ("修身", "偏紧")):
         index -= 1
     return sizes[max(0, min(index, len(sizes) - 1))]
-

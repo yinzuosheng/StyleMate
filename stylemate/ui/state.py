@@ -242,4 +242,3 @@ def validated_garment_update(
 
 def _split_labels(value: str) -> list[str]:
     return [item.strip() for item in value.replace("，", ",").split(",") if item.strip()]
-

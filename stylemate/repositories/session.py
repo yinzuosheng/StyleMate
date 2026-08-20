@@ -57,4 +57,3 @@ class SessionWardrobeRepository:
     def save_feedback(self, feedback: OutfitFeedback) -> None:
         owner = self._owner(feedback.owner_id)
         owner["feedback"][feedback.outfit_id] = feedback.model_dump(mode="json")
-

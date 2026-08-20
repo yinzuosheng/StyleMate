@@ -193,4 +193,3 @@ class SkillOutcome(BaseModel):
     data: dict[str, Any]
     trace: AgentTrace
     user_message: str
-

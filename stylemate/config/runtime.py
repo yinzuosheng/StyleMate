@@ -50,4 +50,3 @@ class RuntimeSettings:
             embedding_base_url=os.getenv("EMBEDDING_BASE_URL", ""),
             embedding_model_name=os.getenv("EMBEDDING_MODEL_NAME", "text-embedding-v4"),
         )
-

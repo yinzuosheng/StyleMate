@@ -200,4 +200,3 @@ def test_v2_migration_resumes_after_interruption_and_is_idempotent(tmp_path: Pat
     assert seed_local_demo_wardrobe(repository, delegate, manifest_path) == 0
     assert len(repository.list_garments("local-user")) == 3
     assert repository.get_metadata(DEMO_SEED_KEY) == "demo_wardrobe_v2"
-

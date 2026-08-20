@@ -90,4 +90,3 @@ def _conversation_summary(payload: dict) -> dict:
         "message_count": len(messages),
         "last_message_at": last_message_at,
     }
-

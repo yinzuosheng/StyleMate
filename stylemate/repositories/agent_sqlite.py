@@ -197,4 +197,3 @@ def _conversation_summary(state: ConversationState) -> dict:
         "message_count": len(messages),
         "last_message_at": last_message_at,
     }
-

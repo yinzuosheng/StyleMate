@@ -106,4 +106,3 @@ class WardrobeService:
         if self.repository.get_garment(owner_id, garment_id) is None:
             raise ValueError("Garment no longer exists")
         self.repository.delete_garment(owner_id, garment_id)
-

@@ -624,4 +624,3 @@ def _snippet(content: str, query: str, limit: int = 180) -> str:
     start = max(0, position - 30) if position >= 0 else 0
     fragment = content[start:start + limit].strip()
     return fragment + ("..." if start + limit < len(content) else "")
-

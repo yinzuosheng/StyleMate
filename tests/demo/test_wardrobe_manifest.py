@@ -77,4 +77,3 @@ def test_demo_wardrobe_images_are_square_webp_assets():
             bounds = foreground.point(lambda value: 255 if value > 12 else 0).getbbox()
             assert bounds is not None
             assert max(bounds[2] - bounds[0], bounds[3] - bounds[1]) >= 300
-

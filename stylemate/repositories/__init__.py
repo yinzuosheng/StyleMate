@@ -5,4 +5,3 @@ from stylemate.repositories.agent_session import SessionAgentRepository
 from stylemate.repositories.agent_sqlite import SQLiteAgentRepository
 
 __all__ = ["AgentRepository", "SessionAgentRepository", "SQLiteAgentRepository"]
-

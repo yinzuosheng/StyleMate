@@ -49,4 +49,3 @@ class UserDocumentChunk(BaseModel):
     section_title: str | None = None
     previous_chunk_id: str | None = None
     next_chunk_id: str | None = None
-

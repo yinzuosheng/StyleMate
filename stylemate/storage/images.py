@@ -113,4 +113,3 @@ class LocalImageStore:
             return self.resolve(image_ref).parent == self._owner_directory(owner_id)
         except ValueError:
             return False
-

@@ -77,4 +77,3 @@ def test_online_evaluation_fails_clearly_when_index_build_fails(tmp_path):
         )
 
     assert not target.exists()
-

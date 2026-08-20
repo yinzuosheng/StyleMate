@@ -308,4 +308,3 @@ __all__ = [
     "validate_fashion_signal",
     "validate_vision_payload",
 ]
-

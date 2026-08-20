@@ -633,4 +633,3 @@ def _explicit_profile_updates(text: str) -> dict[str, str]:
     if color and "风格" not in color.group(1):
         updates["color_preference"] = color.group(1)
     return updates
-

@@ -253,4 +253,3 @@ def render_empty_state(title: str, body: str) -> None:
         f"<span>{escape(body)}</span></div>",
         unsafe_allow_html=True,
     )
-

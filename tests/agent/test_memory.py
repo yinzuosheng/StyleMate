@@ -88,4 +88,3 @@ def test_explicit_correction_replaces_active_scene_and_location():
     assert {
         item.value for item in corrected.provenance if item.field == "locations"
     } == {"杭州"}
-

@@ -33,4 +33,3 @@ def sample_garments() -> list[Garment]:
         )
         for garment_id, name, category, color, styles, image_index in _SAMPLE_GARMENTS
     ]
-

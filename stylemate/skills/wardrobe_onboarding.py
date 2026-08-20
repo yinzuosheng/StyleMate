@@ -187,4 +187,3 @@ class WardrobeOnboardingSkill:
             duration_ms=int((time.perf_counter() - started) * 1000),
             status=status,
         )
-

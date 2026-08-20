@@ -211,4 +211,3 @@ def _target_id(action: PendingAction) -> str:
 
 def _snapshot(garment: Garment) -> dict[str, Any]:
     return garment.model_dump(mode="json")
-

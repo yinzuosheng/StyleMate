@@ -182,4 +182,3 @@ def _packing_weather_compatible(
     ):
         return False
     return not (weather.temperature_c >= 28 and "外套" in garment.category)
-
