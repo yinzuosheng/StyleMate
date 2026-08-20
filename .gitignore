@@ -24,3 +24,5 @@ artifacts/*
 .ruff_cache/
 .test-tmp/
 .vscode/
+docs/STYLEMATE_HANDOFF.md
+docs/assets/stylemate-main.png
